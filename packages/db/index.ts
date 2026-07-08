@@ -12,5 +12,12 @@ export const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-// Re-export generated types + enums (Role, Prisma, etc.) so consumers import from "@repo/db".
-export * from "@prisma/client";
+// Re-export explicitly (not `export *`) so bundlers don't emit CJS-interop runtime
+// code for the @prisma/client CommonJS module.
+export { Prisma, Role } from "@prisma/client";
+export type {
+  User,
+  Document,
+  DocumentAccess,
+  DocumentVersion,
+} from "@prisma/client";
