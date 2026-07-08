@@ -12,10 +12,20 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: "npm run dev",
+      url: "http://localhost:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      // Hocuspocus WS server (also serves HTTP on the same port).
+      command: "npm run start",
+      cwd: "../collab-server",
+      port: 1234,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+  ],
 });

@@ -28,8 +28,9 @@ test.describe("local-first persistence (Phase 2)", () => {
 
     await page.reload();
 
-    // Phase 2 persists nothing to the server, so if the text is back after a
-    // reload it can only have come from IndexedDB — proving local-first.
+    // Text is restored after a reload — local-first persistence at work.
+    // (The strongest proof is the offline test below, where the server never
+    // saw the edit yet it still survives.)
     await expect(page.locator(".tiptap")).toContainText(marker);
   });
 

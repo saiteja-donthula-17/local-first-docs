@@ -1,0 +1,24 @@
+{
+  "name": "collab-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hocuspocus/extension-database": "^4.3.0",
+    "@hocuspocus/server": "^4.3.0",
+    "@repo/db": "*",
+    "dotenv": "^17.2.3",
+    "yjs": "^13.6.31"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.20.3",
+    "typescript": "^5"
+  }
+}

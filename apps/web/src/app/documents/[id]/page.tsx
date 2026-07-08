@@ -44,6 +44,8 @@ export default async function DocumentPage({
         <DocumentEditor
           documentId={document.id}
           editable={canEdit(access.role)}
+          userId={user.id}
+          userName={user.name ?? user.email ?? "Anonymous"}
         />
       </main>
     </>

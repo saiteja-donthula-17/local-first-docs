@@ -1,56 +1,74 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import * as Y from "yjs";
-import { IndexeddbPersistence } from "y-indexeddb";
+import { useEffect } from "react";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
+import type * as Y from "yjs";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCaret from "@tiptap/extension-collaboration-caret";
+import { EditorToolbar, LocalIndicator } from "./editor-toolbar";
+import { ConnectionBadge } from "./connection-badge";
+import { PresenceAvatars } from "./presence-avatars";
 import {
-  EditorToolbar,
-  LocalIndicator,
-  type LocalSaveState,
-} from "./editor-toolbar";
+  useCollaboration,
+  type ConnState,
+} from "@/hooks/use-collaboration";
+import type { LocalSaveState } from "./editor-toolbar";
+import { colorFor } from "@/lib/user-color";
 
-/**
- * Local-first collaborative editor.
- *
- * Phase 2: a Y.Doc bound to Tiptap, persisted to IndexedDB via y-indexeddb.
- * IndexedDB is the source of truth — the editor opens, edits and reloads with
- * ZERO network requests. (The WebSocket sync layer is added in Phase 3.)
- */
-export function CollaborativeEditor({
-  documentId,
-  editable,
-}: {
+type EditorProps = {
   documentId: string;
   editable: boolean;
+  userId: string;
+  userName: string;
+};
+
+/**
+ * Local-first + real-time collaborative editor.
+ *
+ * A single Y.Doc (a CRDT) is synced through IndexedDB (offline source of truth)
+ * and Hocuspocus (live convergence + presence). Concurrent/offline edits merge
+ * deterministically, so no collaborator's work is ever overwritten.
+ */
+export function CollaborativeEditor(props: EditorProps) {
+  const { collab, localState, conn } = useCollaboration(props.documentId);
+
+  if (!collab) {
+    return (
+      <div className="overflow-hidden rounded-lg border border-border bg-card px-4 py-4">
+        <div className="min-h-[60vh] animate-pulse text-sm text-muted-foreground">
+          Connecting…
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <BoundEditor
+      {...props}
+      ydoc={collab.ydoc}
+      provider={collab.provider}
+      localState={localState}
+      conn={conn}
+    />
+  );
+}
+
+function BoundEditor({
+  ydoc,
+  provider,
+  editable,
+  userId,
+  userName,
+  localState,
+  conn,
+}: EditorProps & {
+  ydoc: Y.Doc;
+  provider: HocuspocusProvider;
+  localState: LocalSaveState;
+  conn: ConnState;
 }) {
-  // One Y.Doc per mounted document; stable for the component's lifetime.
-  const [ydoc] = useState(() => new Y.Doc());
-  const [localState, setLocalState] = useState<LocalSaveState>("loading");
-  const savingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    // Namespaced per document so each doc has its own IndexedDB store.
-    const persistence = new IndexeddbPersistence(`lfd:${documentId}`, ydoc);
-    persistence.once("synced", () => setLocalState("saved"));
-
-    const onUpdate = () => {
-      setLocalState("saving");
-      if (savingTimer.current) clearTimeout(savingTimer.current);
-      // y-indexeddb writes synchronously on update; this is just UI feedback.
-      savingTimer.current = setTimeout(() => setLocalState("saved"), 400);
-    };
-    ydoc.on("update", onUpdate);
-
-    return () => {
-      ydoc.off("update", onUpdate);
-      if (savingTimer.current) clearTimeout(savingTimer.current);
-      void persistence.destroy();
-    };
-  }, [documentId, ydoc]);
-
   const editor = useEditor({
     editable,
     immediatelyRender: false,
@@ -58,6 +76,10 @@ export function CollaborativeEditor({
       // Yjs owns history — disable StarterKit's native undo/redo (v3: `undoRedo`).
       StarterKit.configure({ undoRedo: false }),
       Collaboration.configure({ document: ydoc }),
+      CollaborationCaret.configure({
+        provider,
+        user: { name: userName, color: colorFor(userId) },
+      }),
     ],
     editorProps: {
       attributes: {
@@ -75,14 +97,21 @@ export function CollaborativeEditor({
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
-      {editable && editor ? (
-        <EditorToolbar editor={editor} localState={localState} />
-      ) : (
-        <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
-          <span className="text-xs text-muted-foreground">Read-only (Viewer)</span>
+      <div className="flex items-center gap-3 border-b border-border/60 px-3 py-1.5">
+        <PresenceAvatars provider={provider} />
+        {!editable && (
+          <span className="text-xs text-muted-foreground">
+            Read-only (Viewer)
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-3">
+          <ConnectionBadge state={conn} />
+          <span className="h-4 w-px bg-border" aria-hidden />
           <LocalIndicator state={localState} />
         </div>
-      )}
+      </div>
+
+      {editable && editor && <EditorToolbar editor={editor} />}
 
       <div className="px-4 py-4">
         {editor ? (

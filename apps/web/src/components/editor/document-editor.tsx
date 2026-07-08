@@ -20,6 +20,8 @@ const CollaborativeEditor = dynamic(
 export function DocumentEditor(props: {
   documentId: string;
   editable: boolean;
+  userId: string;
+  userName: string;
 }) {
   return <CollaborativeEditor {...props} />;
 }

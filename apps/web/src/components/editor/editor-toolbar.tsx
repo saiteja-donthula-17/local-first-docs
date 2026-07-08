@@ -86,13 +86,7 @@ export function LocalIndicator({
   );
 }
 
-export function EditorToolbar({
-  editor,
-  localState,
-}: {
-  editor: Editor;
-  localState: LocalSaveState;
-}) {
+export function EditorToolbar({ editor }: { editor: Editor }) {
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -195,10 +189,6 @@ export function EditorToolbar({
       >
         <Redo2 className="size-4" />
       </ToolbarButton>
-
-      <div className="ml-auto pr-1">
-        <LocalIndicator state={localState} />
-      </div>
     </div>
   );
 }

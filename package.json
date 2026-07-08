@@ -8,14 +8,20 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w web",
+    "dev": "concurrently -n web,ws -c blue,magenta \"npm:dev:web\" \"npm:dev:server\"",
+    "dev:web": "npm run dev -w web",
+    "dev:server": "npm run dev -w collab-server",
     "build": "npm run build -w web",
     "start": "npm run start -w web",
     "lint": "npm run lint -w web",
+    "test:e2e": "npm run test:e2e -w web",
     "db:generate": "npm run generate -w @repo/db",
     "db:migrate": "npm run migrate -w @repo/db",
     "db:push": "npm run push -w @repo/db",
     "db:seed": "npm run seed -w @repo/db",
     "db:studio": "npm run studio -w @repo/db"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }
