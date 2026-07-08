@@ -1,0 +1,21 @@
+{
+  "name": "local-first-docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-First Collaborative Document Editor with offline sync, deterministic (CRDT) conflict resolution, and version history.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "start": "npm run start -w web",
+    "lint": "npm run lint -w web",
+    "db:generate": "npm run generate -w @repo/db",
+    "db:migrate": "npm run migrate -w @repo/db",
+    "db:push": "npm run push -w @repo/db",
+    "db:seed": "npm run seed -w @repo/db",
+    "db:studio": "npm run studio -w @repo/db"
+  }
+}

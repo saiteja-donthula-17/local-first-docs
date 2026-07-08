@@ -1,0 +1,77 @@
+// Prisma schema — local-first-docs
+// Postgres (local Homebrew Postgres in dev; Neon serverless in prod).
+// Access is ALWAYS resolved through DocumentAccess — no query trusts a client-supplied role.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  access        DocumentAccess[]
+  versionsSaved DocumentVersion[]
+}
+
+model Document {
+  id    String @id @default(cuid())
+  title String @default("Untitled")
+
+  /// Latest compacted Yjs state (Y.encodeStateAsUpdate) — used for cold start and to
+  /// bootstrap a new collaborator without replaying the full update log.
+  ydocState Bytes?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  access   DocumentAccess[]
+  versions DocumentVersion[]
+}
+
+model DocumentAccess {
+  id         String   @id @default(cuid())
+  documentId String
+  userId     String
+  role       Role     @default(VIEWER)
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+  @@index([userId])
+  @@index([documentId])
+}
+
+model DocumentVersion {
+  id         String  @id @default(cuid())
+  documentId String
+  /// Yjs binary snapshot (Y.encodeStateAsUpdate) captured at save time.
+  snapshot   Bytes
+  label      String?
+  isAuto     Boolean @default(false)
+  /// Snapshot size in bytes — feeds the "document growth over time" analytics.
+  size       Int     @default(0)
+  createdAt  DateTime @default(now())
+  authorId   String
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([documentId, createdAt])
+}

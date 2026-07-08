@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# builds
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# prisma generated client (default output lives in node_modules; custom outputs here)
+packages/db/generated/
+
+# testing
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# env — commit only *.example
+.env
+.env.*
+!.env.example
+!.env*.example
+
+# reference material (assignment PDFs + planning notes) — not for the public repo.
+# Remove this line if you want them tracked.
+docs/
+
+# misc
+.DS_Store
+*.pem
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+.DS_Store
