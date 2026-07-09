@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { prisma } from "@repo/db";
+import { prisma, Role } from "@repo/db";
 import { requireUser } from "@/lib/session";
 import { canEdit, getAccess } from "@/lib/access";
 import { AppHeader } from "@/components/app-header";
 import { DocumentEditor } from "@/components/editor/document-editor";
+import { DocumentTitle } from "@/components/documents/document-title";
+import { ShareDialog } from "@/components/documents/share-dialog";
 import { Badge } from "@/components/ui/badge";
 
 export default async function DocumentPage({
@@ -36,10 +38,17 @@ export default async function DocumentPage({
             <ArrowLeft className="size-4" aria-hidden />
             Back
           </Link>
-          <Badge variant="secondary">{access.role}</Badge>
+          <div className="flex items-center gap-2">
+            {access.role === Role.OWNER && <ShareDialog documentId={document.id} />}
+            <Badge variant="secondary">{access.role}</Badge>
+          </div>
         </div>
 
-        <h1 className="mb-4 text-2xl font-semibold">{document.title}</h1>
+        <DocumentTitle
+          documentId={document.id}
+          initialTitle={document.title}
+          canEdit={canEdit(access.role)}
+        />
 
         <DocumentEditor
           documentId={document.id}

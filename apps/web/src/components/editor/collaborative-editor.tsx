@@ -33,7 +33,9 @@ type EditorProps = {
  * deterministically, so no collaborator's work is ever overwritten.
  */
 export function CollaborativeEditor(props: EditorProps) {
-  const { collab, localState, conn } = useCollaboration(props.documentId);
+  const { collab, localState, conn, pending } = useCollaboration(
+    props.documentId,
+  );
 
   if (!collab) {
     return (
@@ -52,6 +54,7 @@ export function CollaborativeEditor(props: EditorProps) {
       provider={collab.provider}
       localState={localState}
       conn={conn}
+      pending={pending}
     />
   );
 }
@@ -65,11 +68,13 @@ function BoundEditor({
   userName,
   localState,
   conn,
+  pending,
 }: EditorProps & {
   ydoc: Y.Doc;
   provider: HocuspocusProvider;
   localState: LocalSaveState;
   conn: ConnState;
+  pending: number;
 }) {
   const editor = useEditor({
     editable,
@@ -108,6 +113,15 @@ function BoundEditor({
           </span>
         )}
         <div className="ml-auto flex items-center gap-3">
+          {pending > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-500"
+              title={`${pending} local change(s) queued — will sync when connected`}
+            >
+              <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+              {pending} pending
+            </span>
+          )}
           <ConnectionBadge state={conn} />
           <span className="h-4 w-px bg-border" aria-hidden />
           <LocalIndicator state={localState} />

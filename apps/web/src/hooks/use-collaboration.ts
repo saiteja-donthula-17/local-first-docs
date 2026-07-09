@@ -29,6 +29,7 @@ export function useCollaboration(documentId: string) {
     WebSocketStatus.Connecting,
   );
   const [remoteSynced, setRemoteSynced] = useState(false);
+  const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine,
   );
@@ -72,6 +73,8 @@ export function useCollaboration(documentId: string) {
         onStatus: ({ status }) => setStatus(status),
         onSynced: () => setRemoteSynced(true),
         onDisconnect: () => setRemoteSynced(false),
+        // Local edits not yet acknowledged by the server — the visible sync queue.
+        onUnsyncedChanges: ({ number }) => setPending(number),
       });
 
       setCollab({ ydoc: doc, provider });
@@ -103,5 +106,5 @@ export function useCollaboration(documentId: string) {
         : "syncing"
       : "connecting";
 
-  return { collab, localState, conn };
+  return { collab, localState, conn, pending };
 }

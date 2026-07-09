@@ -1,39 +1,23 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const DOC = "/documents/demo-doc-0001";
-
-async function login(page: Page, email: string, password = "password") {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /^sign in$/i }).click();
-  await page.waitForURL("/");
-}
+import { test, expect } from "@playwright/test";
+import { login, createDocument, shareDocument, openLiveEditor } from "./helpers";
 
 test.describe("real-time sync (Phase 3)", () => {
   test("two clients editing the same document converge live + see each other's presence", async ({
     browser,
   }) => {
-    // Two independent browser contexts = two real users/sessions.
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
     const pageB = await ctxB.newPage();
 
     await login(pageA, "alice@demo.dev"); // OWNER
-    await login(pageB, "bob@demo.dev"); // EDITOR
+    await login(pageB, "bob@demo.dev"); // will be EDITOR
 
-    await pageA.goto(DOC);
-    await pageB.goto(DOC);
+    const doc = await createDocument(pageA);
+    await shareDocument(pageA, doc, "bob@demo.dev", "EDITOR");
 
-    const edA = pageA.locator(".tiptap");
-    const edB = pageB.locator(".tiptap");
-    await edA.waitFor({ state: "visible" });
-    await edB.waitFor({ state: "visible" });
-
-    // Both connect to the collab server.
-    await expect(pageA.getByText("Live")).toBeVisible({ timeout: 20_000 });
-    await expect(pageB.getByText("Live")).toBeVisible({ timeout: 20_000 });
+    const edA = await openLiveEditor(pageA, doc);
+    const edB = await openLiveEditor(pageB, doc);
 
     // Presence: each sees the other's avatar via Yjs awareness.
     await expect(pageA.locator('[title="Bob"]')).toBeVisible({ timeout: 20_000 });
@@ -51,7 +35,7 @@ test.describe("real-time sync (Phase 3)", () => {
     await pageB.keyboard.type(fromB);
     await expect(edA).toContainText(fromB, { timeout: 20_000 });
 
-    // Both documents now contain both edits — they converged.
+    // Both documents contain both edits — they converged.
     await expect(edA).toContainText(fromA);
     await expect(edB).toContainText(fromB);
 

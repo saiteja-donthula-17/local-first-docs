@@ -1,21 +1,12 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const DOC = "/documents/demo-doc-0001";
-
-async function login(page: Page, email: string, password = "password") {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /^sign in$/i }).click();
-  await page.waitForURL("/");
-}
+import { test, expect } from "@playwright/test";
+import { login, createDocument, shareDocument } from "./helpers";
 
 test.describe("local-first persistence (Phase 2)", () => {
-  test("edits survive a reload with no server-side copy → IndexedDB is the source of truth", async ({
+  test("edits survive a reload → IndexedDB is the source of truth", async ({
     page,
   }) => {
     await login(page, "alice@demo.dev");
-    await page.goto(DOC);
+    await createDocument(page); // navigates to a fresh, isolated doc
 
     const editor = page.locator(".tiptap");
     await editor.waitFor({ state: "visible" });
@@ -27,16 +18,12 @@ test.describe("local-first persistence (Phase 2)", () => {
     await expect(editor).toContainText(marker);
 
     await page.reload();
-
-    // Text is restored after a reload — local-first persistence at work.
-    // (The strongest proof is the offline test below, where the server never
-    // saw the edit yet it still survives.)
     await expect(page.locator(".tiptap")).toContainText(marker);
   });
 
   test("edits made while offline are not lost", async ({ page, context }) => {
     await login(page, "alice@demo.dev");
-    await page.goto(DOC);
+    await createDocument(page);
 
     const editor = page.locator(".tiptap");
     await editor.waitFor({ state: "visible" });
@@ -53,13 +40,26 @@ test.describe("local-first persistence (Phase 2)", () => {
     await expect(page.locator(".tiptap")).toContainText(marker);
   });
 
-  test("viewer gets a read-only editor (cannot push edits)", async ({ page }) => {
-    await login(page, "carol@demo.dev");
-    await page.goto(DOC);
+  test("viewer gets a read-only editor (cannot push edits)", async ({
+    browser,
+  }) => {
+    const ownerCtx = await browser.newContext();
+    const viewerCtx = await browser.newContext();
+    const owner = await ownerCtx.newPage();
+    const viewer = await viewerCtx.newPage();
 
-    const editor = page.locator(".tiptap");
+    await login(owner, "alice@demo.dev");
+    const doc = await createDocument(owner);
+    await shareDocument(owner, doc, "carol@demo.dev", "VIEWER");
+
+    await login(viewer, "carol@demo.dev");
+    await viewer.goto(`/documents/${doc}`);
+    const editor = viewer.locator(".tiptap");
     await editor.waitFor({ state: "visible" });
     await expect(editor).toHaveAttribute("contenteditable", "false");
-    await expect(page.getByText("Read-only (Viewer)")).toBeVisible();
+    await expect(viewer.getByText("Read-only (Viewer)")).toBeVisible();
+
+    await ownerCtx.close();
+    await viewerCtx.close();
   });
 });

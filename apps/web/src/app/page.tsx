@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Clock, FileText } from "lucide-react";
-import { prisma } from "@repo/db";
+import { prisma, Role } from "@repo/db";
 import { requireUser } from "@/lib/session";
 import { AppHeader } from "@/components/app-header";
 import { CreateDocumentButton } from "@/components/documents/create-document-button";
+import { DeleteDocumentButton } from "@/components/documents/delete-document-button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -46,7 +47,15 @@ export default async function DashboardPage() {
                   <Card className="h-full gap-0 p-4 transition-colors hover:border-primary/50">
                     <div className="flex items-start justify-between gap-2">
                       <FileText className="size-5 text-primary" aria-hidden />
-                      <Badge variant="secondary">{role}</Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="secondary">{role}</Badge>
+                        {role === Role.OWNER && (
+                          <DeleteDocumentButton
+                            documentId={document.id}
+                            title={document.title}
+                          />
+                        )}
+                      </div>
                     </div>
                     <h2 className="mt-3 line-clamp-2 font-medium">
                       {document.title}

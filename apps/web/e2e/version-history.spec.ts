@@ -1,22 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const DOC = "/documents/demo-doc-0001";
-
-async function login(page: Page, email: string, password = "password") {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /^sign in$/i }).click();
-  await page.waitForURL("/");
-}
-
-async function openEditor(page: Page) {
-  await page.goto(DOC);
-  const editor = page.locator(".tiptap");
-  await editor.waitFor({ state: "visible" });
-  await expect(page.getByText("Live")).toBeVisible({ timeout: 20_000 });
-  return editor;
-}
+import { test, expect } from "@playwright/test";
+import { login, createDocument, shareDocument, openLiveEditor } from "./helpers";
 
 test.describe("version history (Phase 5)", () => {
   test("save a version, edit further, then restore — converges on a second client", async ({
@@ -30,10 +13,13 @@ test.describe("version history (Phase 5)", () => {
     await login(pageA, "alice@demo.dev");
     await login(pageB, "bob@demo.dev");
 
-    const edA = await openEditor(pageA);
-    const edB = await openEditor(pageB);
+    const doc = await createDocument(pageA);
+    await shareDocument(pageA, doc, "bob@demo.dev", "EDITOR");
 
-    // Establish a known baseline both clients agree on.
+    const edA = await openLiveEditor(pageA, doc);
+    const edB = await openLiveEditor(pageB, doc);
+
+    // Baseline both clients agree on.
     const marker = `v1-${Date.now()}`;
     await edA.click();
     await pageA.keyboard.type(marker);
@@ -45,21 +31,21 @@ test.describe("version history (Phase 5)", () => {
     await pageA.getByPlaceholder("e.g. First draft").fill("baseline");
     await pageA.getByRole("button", { name: /^save$/i }).click();
     await expect(pageA.getByText("Version saved")).toBeVisible({ timeout: 15_000 });
-    await pageA.keyboard.press("Escape"); // close the history sheet
+    await pageA.keyboard.press("Escape");
 
-    // Both clients edit further.
+    // Both edit further.
     const extra = ` extra-${Date.now()}`;
     await edA.click();
     await pageA.keyboard.press("End");
     await pageA.keyboard.type(extra);
     await expect(edB).toContainText(extra, { timeout: 20_000 });
 
-    // Alice reopens history and restores the newest ("baseline") version.
+    // Alice restores the saved "baseline" version.
     await pageA.getByRole("button", { name: /history/i }).click();
     await pageA.getByRole("button", { name: /^restore$/i }).first().click();
     await expect(pageA.getByText(/restored/i)).toBeVisible({ timeout: 15_000 });
 
-    // Both converge back to the baseline; the later edit is gone everywhere.
+    // Both converge back to baseline; the later edit is gone everywhere.
     await expect(edA).toContainText(marker);
     await expect(edA).not.toContainText(extra.trim());
     await expect(edB).toContainText(marker, { timeout: 20_000 });
