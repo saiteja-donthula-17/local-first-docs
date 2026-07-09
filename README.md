@@ -4,9 +4,11 @@ A **local-first, collaborative document editor** with offline editing, determini
 (CRDT) conflict resolution, and safe version history — built for the House of EdTech
 Full-Stack assignment.
 
-> **Status:** Phases 1–3 complete — auth + tenant-scoped CRUD, a local-first
-> (Tiptap + Yjs + IndexedDB) editor, and real-time multi-client sync with live
-> presence over a Hocuspocus WebSocket server. Version history + AI next.
+> **Status:** Phases 1–5 complete — auth + tenant-scoped CRUD, a local-first
+> (Tiptap + Yjs + IndexedDB) editor, real-time multi-client sync with live
+> presence, server-enforced roles on the socket (Viewers can't push, even via a
+> hacked client), and version history with CRDT-safe time-travel restore.
+> AI features + deploy next.
 
 ## Stack
 

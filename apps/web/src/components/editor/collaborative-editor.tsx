@@ -10,6 +10,7 @@ import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import { EditorToolbar, LocalIndicator } from "./editor-toolbar";
 import { ConnectionBadge } from "./connection-badge";
 import { PresenceAvatars } from "./presence-avatars";
+import { VersionHistory } from "./version-history";
 import {
   useCollaboration,
   type ConnState,
@@ -56,6 +57,7 @@ export function CollaborativeEditor(props: EditorProps) {
 }
 
 function BoundEditor({
+  documentId,
   ydoc,
   provider,
   editable,
@@ -97,8 +99,9 @@ function BoundEditor({
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <div className="flex items-center gap-3 border-b border-border/60 px-3 py-1.5">
+      <div className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5">
         <PresenceAvatars provider={provider} />
+        <VersionHistory documentId={documentId} ydoc={ydoc} canEdit={editable} />
         {!editable && (
           <span className="text-xs text-muted-foreground">
             Read-only (Viewer)
