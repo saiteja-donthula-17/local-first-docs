@@ -51,6 +51,14 @@ export function useCollaboration(documentId: string) {
       url: WS_URL,
       name: documentId,
       document: ydoc,
+      // Fetch a fresh handshake token (uses the session cookie) on every
+      // (re)connect. The server verifies it and enforces the user's role.
+      token: async () => {
+        const res = await fetch("/api/collab-token");
+        if (!res.ok) return "";
+        const data = (await res.json()) as { token: string };
+        return data.token;
+      },
       onStatus: ({ status }) => setStatus(status),
       onSynced: () => setRemoteSynced(true),
       onDisconnect: () => setRemoteSynced(false),

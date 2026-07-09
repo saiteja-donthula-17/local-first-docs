@@ -14,6 +14,8 @@
     "build": "npm run build -w web",
     "start": "npm run start -w web",
     "lint": "npm run lint -w web",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "npm run test -w collab-server",
     "test:e2e": "npm run test:e2e -w web",
     "db:generate": "npm run generate -w @repo/db",
     "db:migrate": "npm run migrate -w @repo/db",

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Server } from "@hocuspocus/server";
 import { Database } from "@hocuspocus/extension-database";
 import { prisma } from "@repo/db";
+import { authorizeConnection } from "./auth";
 
 const port = Number(process.env.PORT ?? 1234);
 
@@ -9,11 +10,22 @@ const port = Number(process.env.PORT ?? 1234);
  * Hocuspocus WebSocket server — relays Yjs updates between collaborators and
  * persists a compacted document state to Postgres (Document.ydocState).
  *
- * Phase 3: sync + persistence.
- * Phase 4 will add `onAuthenticate` (JWT + role) so Viewers can't push updates.
+ * Auth: every connection must present a valid handshake token AND have a
+ * DocumentAccess row for the requested document; Viewers connect read-only.
  */
 const server = new Server({
   port,
+
+  // Reject connections that fail authorization; mark Viewers read-only so the
+  // server drops any document updates a hacked Viewer client tries to send.
+  onAuthenticate: async ({ token, documentName, connectionConfig }) => {
+    const { userId, role, readOnly } = await authorizeConnection(
+      token,
+      documentName,
+    );
+    connectionConfig.readOnly = readOnly;
+    return { userId, role };
+  },
 
   // Debounce persistence so rapid typing doesn't hammer Postgres. Hocuspocus
   // calls store on a trailing debounce, with a hard ceiling via maxDebounce.
