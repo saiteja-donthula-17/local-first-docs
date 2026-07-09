@@ -211,3 +211,28 @@
   user-select: none;
   white-space: nowrap;
 }
+
+/* Empty-editor placeholder (from @tiptap/extension-placeholder) */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Print / Save-as-PDF: show only the document body */
+@media print {
+  header,
+  footer,
+  .editor-chrome,
+  .editor-toolbar-root {
+    display: none !important;
+  }
+  .editor-shell {
+    border: none !important;
+  }
+  .tiptap {
+    min-height: 0 !important;
+  }
+}

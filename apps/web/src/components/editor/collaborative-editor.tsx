@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type * as Y from "yjs";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
-import { EditorToolbar, LocalIndicator } from "./editor-toolbar";
+import { EditorToolbar, LocalIndicator, WordCount } from "./editor-toolbar";
 import { ConnectionBadge } from "./connection-badge";
 import { PresenceAvatars } from "./presence-avatars";
 import { VersionHistory } from "./version-history";
+import { ExportMenu } from "./export-menu";
 import {
   useCollaboration,
   type ConnState,
@@ -23,6 +26,7 @@ type EditorProps = {
   editable: boolean;
   userId: string;
   userName: string;
+  title: string;
 };
 
 /**
@@ -66,6 +70,7 @@ function BoundEditor({
   editable,
   userId,
   userName,
+  title,
   localState,
   conn,
   pending,
@@ -82,6 +87,7 @@ function BoundEditor({
     extensions: [
       // Yjs owns history — disable StarterKit's native undo/redo (v3: `undoRedo`).
       StarterKit.configure({ undoRedo: false }),
+      Placeholder.configure({ placeholder: "Start writing…" }),
       Collaboration.configure({ document: ydoc }),
       CollaborationCaret.configure({
         provider,
@@ -102,17 +108,32 @@ function BoundEditor({
     editor?.setEditable(editable);
   }, [editor, editable]);
 
+  // Toast only on real offline↔online transitions (not the initial connect).
+  const prevConn = useRef(conn);
+  useEffect(() => {
+    const prev = prevConn.current;
+    prevConn.current = conn;
+    if (prev === conn) return;
+    if (conn === "offline") {
+      toast.warning("You're offline — changes are saved locally");
+    } else if (prev === "offline" && conn === "live") {
+      toast.success("Back online — synced");
+    }
+  }, [conn]);
+
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <div className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5">
+    <div className="editor-shell overflow-hidden rounded-lg border border-border bg-card">
+      <div className="editor-chrome flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
         <PresenceAvatars provider={provider} />
         <VersionHistory documentId={documentId} ydoc={ydoc} canEdit={editable} />
+        {editor && <ExportMenu editor={editor} title={title} />}
         {!editable && (
-          <span className="text-xs text-muted-foreground">
+          <span className="pl-1 text-xs text-muted-foreground">
             Read-only (Viewer)
           </span>
         )}
         <div className="ml-auto flex items-center gap-3">
+          {editor && <WordCount editor={editor} />}
           {pending > 0 && (
             <span
               className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-500"

@@ -55,6 +55,7 @@ export default async function DocumentPage({
           editable={canEdit(access.role)}
           userId={user.id}
           userName={user.name ?? user.email ?? "Anonymous"}
+          title={document.title}
         />
       </main>
     </>

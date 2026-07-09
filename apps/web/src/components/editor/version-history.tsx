@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as Y from "yjs";
 import { Clock, History, RotateCcw, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -123,6 +123,21 @@ export function VersionHistory({
       setBusy(false);
     }
   }
+
+  // ⌘S / Ctrl+S → quick-save an (unlabeled) version. Latest-ref keeps deps stable.
+  const saveRef = useRef(onSave);
+  saveRef.current = onSave;
+  useEffect(() => {
+    if (!canEdit) return;
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        void saveRef.current();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canEdit]);
 
   // AI: stream a plain-English explanation of what changed since this version.
   async function onExplain(version: VersionMeta) {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FileText } from "lucide-react";
-import { signOutAction } from "@/app/actions/auth";
-import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function AppHeader({ email }: { email?: string | null }) {
   return (
@@ -15,11 +15,8 @@ export function AppHeader({ email }: { email?: string | null }) {
           {email && (
             <span className="hidden text-muted-foreground sm:inline">{email}</span>
           )}
-          <form action={signOutAction}>
-            <Button type="submit" variant="outline" size="sm">
-              Sign out
-            </Button>
-          </form>
+          <ThemeToggle />
+          <SignOutButton />
         </div>
       </div>
     </header>

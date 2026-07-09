@@ -22,6 +22,7 @@ export function DocumentEditor(props: {
   editable: boolean;
   userId: string;
   userName: string;
+  title: string;
 }) {
   return <CollaborativeEditor {...props} />;
 }

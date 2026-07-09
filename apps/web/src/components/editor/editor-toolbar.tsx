@@ -86,6 +86,27 @@ export function LocalIndicator({
   );
 }
 
+export function WordCount({ editor }: { editor: Editor }) {
+  const stats = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      const text = e.getText().trim();
+      return {
+        words: text ? text.split(/\s+/).length : 0,
+        chars: e.getText().length,
+      };
+    },
+  });
+  return (
+    <span
+      className="text-xs tabular-nums text-muted-foreground"
+      title={`${stats.chars} characters`}
+    >
+      {stats.words} {stats.words === 1 ? "word" : "words"}
+    </span>
+  );
+}
+
 export function EditorToolbar({ editor }: { editor: Editor }) {
   const s = useEditorState({
     editor,
@@ -105,7 +126,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
   });
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-border/60 px-2 py-1.5">
+    <div className="editor-toolbar-root flex flex-wrap items-center gap-1 border-b border-border/60 px-2 py-1.5">
       <ToolbarButton
         label="Bold"
         active={s.bold}
