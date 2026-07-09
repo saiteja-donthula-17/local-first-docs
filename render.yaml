@@ -1,0 +1,19 @@
+# Render blueprint for the Hocuspocus collaboration server.
+# The Next.js app deploys separately to Vercel (see README → Deployment).
+services:
+  - type: web
+    name: local-first-collab
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm ci
+    startCommand: npm run start -w collab-server
+    # Hocuspocus serves HTTP on the same port; "/" returns 200.
+    healthCheckPath: /
+    envVars:
+      # Set these in the Render dashboard (sync: false = not stored in the repo).
+      - key: DATABASE_URL # same Neon database as the web app
+        sync: false
+      - key: COLLAB_TOKEN_SECRET # MUST match the web app's value
+        sync: false
+      # PORT is injected by Render automatically; the server binds to it.

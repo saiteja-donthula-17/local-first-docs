@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import * as Y from "yjs";
-import { Clock, History, RotateCcw, Save } from "lucide-react";
+import { Clock, History, RotateCcw, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -49,6 +49,11 @@ export function VersionHistory({
   const [versions, setVersions] = useState<VersionMeta[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [explain, setExplain] = useState<{
+    label: string;
+    text: string;
+    loading: boolean;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -119,7 +124,50 @@ export function VersionHistory({
     }
   }
 
+  // AI: stream a plain-English explanation of what changed since this version.
+  async function onExplain(version: VersionMeta) {
+    const label = version.label || (version.isAuto ? "Auto-save" : "Snapshot");
+    setExplain({ label, text: "", loading: true });
+    try {
+      const update = Y.encodeStateAsUpdate(ydoc);
+      const res = await fetch(
+        `/api/documents/${documentId}/versions/${version.id}/explain`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current: bytesToBase64(update) }),
+        },
+      );
+      if (!res.ok || !res.body) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setExplain({
+          label,
+          text: data.error ?? "Could not generate an explanation.",
+          loading: false,
+        });
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(value, { stream: true });
+        setExplain({ label, text: acc, loading: true });
+      }
+      setExplain({ label, text: acc, loading: false });
+    } catch {
+      setExplain({
+        label,
+        text: "Could not generate an explanation.",
+        loading: false,
+      });
+    }
+  }
+
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger
         render={<Button variant="ghost" size="sm" className="gap-1.5" />}
@@ -169,18 +217,29 @@ export function VersionHistory({
                         {v.isAuto ? " · auto" : ""}
                       </p>
                     </div>
-                    {canEdit && (
+                    <div className="flex shrink-0 flex-col items-stretch gap-1.5">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        disabled={busy}
-                        onClick={() => onRestore(v)}
-                        className="shrink-0 gap-1.5"
+                        onClick={() => onExplain(v)}
+                        className="gap-1.5"
                       >
-                        <RotateCcw className="size-3.5" aria-hidden />
-                        Restore
+                        <Sparkles className="size-3.5" aria-hidden />
+                        Explain
                       </Button>
-                    )}
+                      {canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => onRestore(v)}
+                          className="gap-1.5"
+                        >
+                          <RotateCcw className="size-3.5" aria-hidden />
+                          Restore
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}
@@ -194,6 +253,27 @@ export function VersionHistory({
         </div>
       </SheetContent>
     </Sheet>
+
+      <Dialog open={!!explain} onOpenChange={(o) => !o && setExplain(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" aria-hidden />
+              What changed
+            </DialogTitle>
+            <DialogDescription>
+              Since “{explain?.label}” → now, explained by AI.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[50vh] min-h-24 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm leading-relaxed">
+            {explain?.text}
+            {explain?.loading && (
+              <span className="ml-0.5 inline-block animate-pulse">▍</span>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

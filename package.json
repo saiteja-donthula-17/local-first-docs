@@ -14,6 +14,8 @@
     "build": "npm run build -w web",
     "start": "npm run start -w web",
     "lint": "npm run lint -w web",
+    "typecheck": "tsc --noEmit -p apps/web/tsconfig.json && npm run typecheck -w collab-server",
+    "db:migrate:deploy": "npm run migrate:deploy -w @repo/db",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "npm run test -w collab-server && npm run test -w web",
     "test:e2e": "npm run test:e2e -w web",

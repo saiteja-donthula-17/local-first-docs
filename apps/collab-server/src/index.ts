@@ -3,8 +3,13 @@ import { Server } from "@hocuspocus/server";
 import { Database } from "@hocuspocus/extension-database";
 import { prisma } from "@repo/db";
 import { authorizeConnection } from "./auth";
+import { allowMessage, releaseSocket } from "./rate-limit";
 
 const port = Number(process.env.PORT ?? 1234);
+
+// Hard cap on a single sync message. The ws server drops larger frames BEFORE
+// parsing them — the primary defense against a malformed payload OOMing us.
+const MAX_MESSAGE_BYTES = 1024 * 1024; // 1 MB
 
 /**
  * Hocuspocus WebSocket server — relays Yjs updates between collaborators and
@@ -16,6 +21,9 @@ const port = Number(process.env.PORT ?? 1234);
 const server = new Server({
   port,
 
+  // Transport-level OOM guard: ws drops any frame larger than this pre-parse.
+  websocketOptions: { maxPayload: MAX_MESSAGE_BYTES },
+
   // Reject connections that fail authorization; mark Viewers read-only so the
   // server drops any document updates a hacked Viewer client tries to send.
   onAuthenticate: async ({ token, documentName, connectionConfig }) => {
@@ -25,6 +33,22 @@ const server = new Server({
     );
     connectionConfig.readOnly = readOnly;
     return { userId, role };
+  },
+
+  // App-level validation on every sync message: belt-and-suspenders size check
+  // + per-connection rate limit (token bucket). Throwing rejects the message.
+  beforeHandleMessage: async ({ update, socketId }) => {
+    if (update.byteLength > MAX_MESSAGE_BYTES) {
+      throw new Error(`Payload too large: ${update.byteLength} bytes`);
+    }
+    if (!allowMessage(socketId)) {
+      throw new Error("Rate limit exceeded");
+    }
+  },
+
+  // Free the socket's rate-limit bucket on disconnect.
+  onDisconnect: async ({ socketId }) => {
+    releaseSocket(socketId);
   },
 
   // Debounce persistence so rapid typing doesn't hammer Postgres. Hocuspocus
