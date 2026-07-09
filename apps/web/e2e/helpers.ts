@@ -3,7 +3,8 @@ import { type Page, expect } from "@playwright/test";
 export async function login(page: Page, email: string, password = "password") {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  // exact: true so the "Show password" toggle button doesn't also match.
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
   await page.waitForURL("/");
 }
