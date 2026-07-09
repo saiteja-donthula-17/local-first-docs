@@ -18,9 +18,9 @@ export type Collab = { ydoc: Y.Doc; provider: HocuspocusProvider };
  *  - IndexedDB (local-first source of truth; always works offline), and
  *  - the Hocuspocus WebSocket provider (real-time sync + server persistence).
  *
- * Everything is created inside the effect so React StrictMode's double-mount
- * cleanly tears down (destroy) and recreates the socket — no leaked connections.
- * `collab` is null until ready; the editor renders only once it exists.
+ * Creation is deferred one macrotask so React StrictMode's immediate dev
+ * double-mount tears down BEFORE any socket opens — no churned connections.
+ * `collab` stays null until ready; the editor renders only once it exists.
  */
 export function useCollaboration(documentId: string) {
   const [collab, setCollab] = useState<Collab | null>(null);
@@ -34,55 +34,63 @@ export function useCollaboration(documentId: string) {
   );
 
   useEffect(() => {
-    const ydoc = new Y.Doc();
-    const persistence = new IndexeddbPersistence(`lfd:${documentId}`, ydoc);
-    persistence.once("synced", () => setLocalState("saved"));
-
-    // Any doc change (local typing or a remote update) is written to IndexedDB.
+    let disposed = false;
+    let ydoc: Y.Doc | null = null;
+    let persistence: IndexeddbPersistence | null = null;
+    let provider: HocuspocusProvider | null = null;
     let savingTimer: ReturnType<typeof setTimeout> | null = null;
-    const onUpdate = () => {
-      setLocalState("saving");
-      if (savingTimer) clearTimeout(savingTimer);
-      savingTimer = setTimeout(() => setLocalState("saved"), 400);
-    };
-    ydoc.on("update", onUpdate);
 
-    const provider = new HocuspocusProvider({
-      url: WS_URL,
-      name: documentId,
-      document: ydoc,
-      // Fetch a fresh handshake token (uses the session cookie) on every
-      // (re)connect. The server verifies it and enforces the user's role.
-      token: async () => {
-        const res = await fetch("/api/collab-token");
-        if (!res.ok) return "";
-        const data = (await res.json()) as { token: string };
-        return data.token;
-      },
-      onStatus: ({ status }) => setStatus(status),
-      onSynced: () => setRemoteSynced(true),
-      onDisconnect: () => setRemoteSynced(false),
-    });
+    const start = setTimeout(() => {
+      if (disposed) return;
+
+      const doc = new Y.Doc();
+      ydoc = doc;
+
+      persistence = new IndexeddbPersistence(`lfd:${documentId}`, doc);
+      persistence.once("synced", () => setLocalState("saved"));
+
+      // Any doc change (local typing or a remote update) is written to IndexedDB.
+      const onUpdate = () => {
+        setLocalState("saving");
+        if (savingTimer) clearTimeout(savingTimer);
+        savingTimer = setTimeout(() => setLocalState("saved"), 400);
+      };
+      doc.on("update", onUpdate);
+
+      provider = new HocuspocusProvider({
+        url: WS_URL,
+        name: documentId,
+        document: doc,
+        // Fetch a fresh handshake token (uses the session cookie) on every
+        // (re)connect. The server verifies it and enforces the user's role.
+        token: async () => {
+          const res = await fetch("/api/collab-token");
+          if (!res.ok) return "";
+          const data = (await res.json()) as { token: string };
+          return data.token;
+        },
+        onStatus: ({ status }) => setStatus(status),
+        onSynced: () => setRemoteSynced(true),
+        onDisconnect: () => setRemoteSynced(false),
+      });
+
+      setCollab({ ydoc: doc, provider });
+    }, 0);
 
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
 
-    // The Y.Doc + WebSocket provider are external resources that can only be
-    // created here (not during render), and StrictMode-safe teardown requires
-    // the effect. Exposing the handle via state is intentional.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCollab({ ydoc, provider });
-
     return () => {
-      ydoc.off("update", onUpdate);
+      disposed = true;
+      clearTimeout(start);
       if (savingTimer) clearTimeout(savingTimer);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
-      provider.destroy();
-      void persistence.destroy();
-      ydoc.destroy();
+      provider?.destroy();
+      void persistence?.destroy();
+      ydoc?.destroy();
       setCollab(null);
     };
   }, [documentId]);
