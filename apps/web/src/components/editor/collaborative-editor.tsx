@@ -121,6 +121,23 @@ function BoundEditor({
     }
   }, [conn]);
 
+  // If connecting drags on (e.g. a sleeping free-tier server waking up), reassure
+  // the user once that editing already works and will sync automatically.
+  const slowInfoShown = useRef(false);
+  useEffect(() => {
+    if (conn === "live" || conn === "offline") return;
+    const timer = setTimeout(() => {
+      if (!slowInfoShown.current) {
+        slowInfoShown.current = true;
+        toast.info(
+          "Connecting to the collaboration server… You can keep editing now — your work is saved locally and will sync automatically.",
+          { duration: 7000 },
+        );
+      }
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [conn]);
+
   return (
     <div className="editor-shell overflow-hidden rounded-lg border border-border bg-card">
       <div className="editor-chrome flex items-center gap-1 border-b border-border/60 px-2 py-1.5">
